@@ -1,0 +1,227 @@
+name: Daily English Practice Task
+
+on:
+  schedule:
+    # Runs every day at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      override_date:
+        description: 'Date to generate task for (YYYY-MM-DD). Leave blank for today.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  models: read
+
+jobs:
+  generate-daily-task:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up date variables
+        id: dates
+        run: |
+          if [ -n "${{ github.event.inputs.override_date }}" ]; then
+            TARGET_DATE="${{ github.event.inputs.override_date }}"
+          else
+            TARGET_DATE=$(date -u +"%Y-%m-%d")
+          fi
+          YEAR=$(echo "$TARGET_DATE" | cut -d'-' -f1)
+          MONTH=$(echo "$TARGET_DATE" | cut -d'-' -f2)
+          DAY=$(echo "$TARGET_DATE" | cut -d'-' -f3)
+          FOLDER="${YEAR}/${MONTH}/${DAY}"
+          echo "target_date=$TARGET_DATE" >> "$GITHUB_OUTPUT"
+          echo "year=$YEAR"               >> "$GITHUB_OUTPUT"
+          echo "month=$MONTH"             >> "$GITHUB_OUTPUT"
+          echo "day=$DAY"                 >> "$GITHUB_OUTPUT"
+          echo "folder=$FOLDER"           >> "$GITHUB_OUTPUT"
+
+      - name: Read next prompt from lock file
+        id: lockfile
+        run: |
+          NEXT_PROMPT=$(jq -r '.next_session.prompt' progress.lock)
+          # Escape newlines for multiline output
+          NEXT_PROMPT="${NEXT_PROMPT//'%'/'%25'}"
+          NEXT_PROMPT="${NEXT_PROMPT//$'\n'/'%0A'}"
+          NEXT_PROMPT="${NEXT_PROMPT//$'\r'/'%0D'}"
+          echo "next_prompt=$NEXT_PROMPT" >> "$GITHUB_OUTPUT"
+
+          CURRENT_TOPIC=$(jq -r '.current_session.topic' progress.lock)
+          echo "current_topic=$CURRENT_TOPIC" >> "$GITHUB_OUTPUT"
+
+      - name: Generate task with GitHub Models API (gpt-4o)
+        id: generate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TARGET_DATE="${{ steps.dates.outputs.target_date }}"
+          NEXT_PROMPT="${{ steps.lockfile.outputs.next_prompt }}"
+
+          # Build the full system + user message
+          SYSTEM_MSG="You are an expert English fluency coach. The learner is non-native with strong grammar who wants to speak like a native. Format your response in clear Markdown with sections: Explanation, Example Sentences (textbook vs native table), Speaking Drill (timed), Common Mistakes, Challenge Sentence, and a trailing JSON block with the next session metadata."
+          USER_MSG="${NEXT_PROMPT} Today's date: ${TARGET_DATE}."
+
+          PAYLOAD=$(jq -n \
+            --arg model "gpt-4o" \
+            --arg sys "$SYSTEM_MSG" \
+            --arg usr "$USER_MSG" \
+            '{
+              model: $model,
+              messages: [
+                {role: "system", content: $sys},
+                {role: "user",   content: $usr}
+              ],
+              temperature: 0.7,
+              max_tokens: 1800
+            }')
+
+          RESPONSE=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "https://models.inference.ai.azure.com/chat/completions")
+
+          # Extract the text content
+          TASK_CONTENT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // "Error: no content returned."')
+
+          # Save to a temp file so we can handle multi-line content
+          echo "$TASK_CONTENT" > /tmp/task_content.md
+          echo "Task content written to /tmp/task_content.md"
+
+      - name: Extract next session metadata from AI response
+        id: next_meta
+        run: |
+          # The AI is instructed to end with a JSON block containing next session info
+          TASK_CONTENT=$(cat /tmp/task_content.md)
+
+          # Try to parse the trailing JSON block produced by the AI
+          NEXT_JSON=$(echo "$TASK_CONTENT" | python3 -c "
+          import sys, re, json
+          text = sys.stdin.read()
+          # Find last JSON block in the response
+          matches = re.findall(r'\{[^{}]*\"next_topic\"[^{}]*\}', text, re.DOTALL)
+          if matches:
+              try:
+                  obj = json.loads(matches[-1])
+                  print(json.dumps(obj))
+              except Exception:
+                  print('{}')
+          else:
+              print('{}')
+          ")
+
+          NEXT_TOPIC=$(echo "$NEXT_JSON" | jq -r '.next_topic // "TBD"')
+          NEXT_SKILL=$(echo "$NEXT_JSON" | jq -c '.next_skill_focus // []')
+          NEXT_PROMPT=$(echo "$NEXT_JSON" | jq -r '.next_prompt // ""')
+
+          echo "next_topic=$NEXT_TOPIC"   >> "$GITHUB_OUTPUT"
+          echo "next_skill=$NEXT_SKILL"   >> "$GITHUB_OUTPUT"
+
+          # Escape for GitHub output
+          NEXT_PROMPT="${NEXT_PROMPT//'%'/'%25'}"
+          NEXT_PROMPT="${NEXT_PROMPT//$'\n'/'%0A'}"
+          NEXT_PROMPT="${NEXT_PROMPT//$'\r'/'%0D'}"
+          echo "next_prompt=$NEXT_PROMPT" >> "$GITHUB_OUTPUT"
+
+      - name: Create dated folder and write task.md
+        run: |
+          FOLDER="${{ steps.dates.outputs.folder }}"
+          mkdir -p "$FOLDER"
+
+          # Write header
+          DATE_LABEL="${{ steps.dates.outputs.year }}/${{ steps.dates.outputs.month }}/${{ steps.dates.outputs.day }}"
+          TOPIC="${{ steps.next_meta.outputs.next_topic }}"
+
+          {
+            echo "# 📅 ${DATE_LABEL} — ${TOPIC}"
+            echo ""
+            cat /tmp/task_content.md
+          } > "${FOLDER}/task.md"
+
+          # Create blank notes file if it doesn't already exist
+          if [ ! -f "${FOLDER}/notes.md" ]; then
+            cat > "${FOLDER}/notes.md" << 'NOTES'
+# 📝 Practice Notes
+
+> Fill in this file after completing today's task.
+
+## Speaking Drill Reflection
+
+## Sentences I Want to Remember
+
+## My Own Examples
+
+## Questions / Confusions
+NOTES
+          fi
+
+      - name: Update progress.lock
+        run: |
+          TARGET_DATE="${{ steps.dates.outputs.target_date }}"
+          FOLDER="${{ steps.dates.outputs.folder }}"
+          CURRENT_TOPIC="${{ steps.lockfile.outputs.current_topic }}"
+          NEXT_TOPIC="${{ steps.next_meta.outputs.next_topic }}"
+          NEXT_SKILL='${{ steps.next_meta.outputs.next_skill }}'
+          NEXT_PROMPT="${{ steps.next_meta.outputs.next_prompt }}"
+
+          # Compute tomorrow's date and folder
+          TOMORROW=$(date -u -d "$TARGET_DATE + 1 day" +"%Y-%m-%d")
+          TOM_YEAR=$(echo "$TOMORROW" | cut -d'-' -f1)
+          TOM_MONTH=$(echo "$TOMORROW" | cut -d'-' -f2)
+          TOM_DAY=$(echo "$TOMORROW" | cut -d'-' -f3)
+          TOM_FOLDER="${TOM_YEAR}/${TOM_MONTH}/${TOM_DAY}"
+
+          # Append current session to history, then update lock file
+          python3 - << PYEOF
+          import json, datetime
+
+          with open('progress.lock', 'r') as f:
+              lock = json.load(f)
+
+          # Archive current session into history
+          prev = dict(lock.get('current_session', {}))
+          prev['completed'] = True
+          history = lock.get('history', [])
+          # Avoid duplicate history entries
+          if not any(h.get('date') == prev.get('date') for h in history):
+              history.append(prev)
+          lock['history'] = history
+
+          # Set new current session
+          lock['current_session'] = {
+              'date': '${FOLDER}',
+              'folder': '${FOLDER}',
+              'topic': '${NEXT_TOPIC}',
+              'skill_focus': json.loads('${NEXT_SKILL}') if '${NEXT_SKILL}' not in ('', '[]') else [],
+              'completed': False,
+          }
+
+          # Set next session
+          lock['next_session'] = {
+              'scheduled_date': '${TOM_FOLDER}',
+              'folder': '${TOM_FOLDER}',
+              'prompt': '${NEXT_PROMPT}',
+          }
+
+          lock['last_updated'] = '${TARGET_DATE}'
+
+          with open('progress.lock', 'w') as f:
+              json.dump(lock, f, indent=2, ensure_ascii=False)
+              f.write('\n')
+
+          print('progress.lock updated successfully.')
+          PYEOF
+
+      - name: Commit and push changes
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add progress.lock "${{ steps.dates.outputs.folder }}/"
+          git diff --cached --quiet && echo "Nothing to commit." || \
+            git commit -m "chore: daily task for ${{ steps.dates.outputs.folder }}"
+          git push

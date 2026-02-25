@@ -1,0 +1,43 @@
+{
+  "version": "1.0.0",
+  "repo": "next-vocal",
+  "description": "English speaking practice — learn to talk like a native",
+  "folder_structure": "yyyy/mm/DD",
+  "last_updated": "2026-02-25",
+
+  "current_session": {
+    "date": "2026/02/25",
+    "folder": "2026/02/25",
+    "topic": "Greetings & Small Talk",
+    "skill_focus": [
+      "natural openers",
+      "filler words & discourse markers",
+      "question tags",
+      "responding without sounding textbook"
+    ],
+    "completed": false
+  },
+
+  "next_session": {
+    "scheduled_date": "2026/02/26",
+    "folder": "2026/02/26",
+    "prompt": "You are an expert English fluency coach helping a non-native speaker sound like a native. The learner has strong grammar. Yesterday's topic was 'Greetings & Small Talk'. Today (2026/02/26) focus on: **Expressing opinions naturally** — how natives hedge, agree, disagree, and give opinions without sounding formal (e.g. 'I'd say…', 'Honestly…', 'If you ask me…', 'I'm not so sure about that'). Provide: (1) a short explanation of the skill, (2) 10 example sentences contrasting textbook vs native phrasing, (3) a 5-minute speaking drill, (4) 3 common mistakes to avoid, (5) a fun challenge sentence to try out loud. End by suggesting the NEXT topic that logically follows, formatted as a JSON block: {\"next_topic\": \"...\", \"next_skill_focus\": [\"...\"], \"next_prompt\": \"...\"}."
+  },
+
+  "settings": {
+    "ai_model": "gpt-4o",
+    "language": "English",
+    "level": "upper-intermediate to advanced",
+    "goal": "native-like spoken fluency",
+    "daily_time_budget_minutes": 20
+  },
+
+  "history": [
+    {
+      "date": "2026/02/25",
+      "topic": "Greetings & Small Talk",
+      "folder": "2026/02/25",
+      "completed": false
+    }
+  ]
+}
