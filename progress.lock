@@ -3,25 +3,25 @@
   "repo": "next-vocal",
   "description": "English speaking practice — learn to talk like a native",
   "folder_structure": "yyyy/mm/DD",
-  "last_updated": "2026-02-25",
+  "last_updated": "2026-02-26",
 
   "current_session": {
-    "date": "2026/02/25",
-    "folder": "2026/02/25",
-    "topic": "Greetings & Small Talk",
+    "date": "2026/02/26",
+    "folder": "2026/02/26",
+    "topic": "Expressing Opinions Naturally",
     "skill_focus": [
-      "natural openers",
-      "filler words & discourse markers",
-      "question tags",
-      "responding without sounding textbook"
+      "hedging opinions",
+      "agreeing & disagreeing",
+      "natural opinion starters",
+      "avoiding textbook formality"
     ],
     "completed": false
   },
 
   "next_session": {
-    "scheduled_date": "2026/02/26",
-    "folder": "2026/02/26",
-    "prompt": "You are an expert English fluency coach helping a non-native speaker sound like a native. The learner has strong grammar. Yesterday's topic was 'Greetings & Small Talk'. Today (2026/02/26) focus on: **Expressing opinions naturally** — how natives hedge, agree, disagree, and give opinions without sounding formal (e.g. 'I'd say…', 'Honestly…', 'If you ask me…', 'I'm not so sure about that'). Provide: (1) a short explanation of the skill, (2) 10 example sentences contrasting textbook vs native phrasing, (3) a 5-minute speaking drill, (4) 3 common mistakes to avoid, (5) a fun challenge sentence to try out loud. End by suggesting the NEXT topic that logically follows, formatted as a JSON block: {\"next_topic\": \"...\", \"next_skill_focus\": [\"...\"], \"next_prompt\": \"...\"}."
+    "scheduled_date": "2026/02/27",
+    "folder": "2026/02/27",
+    "prompt": "You are an expert English fluency coach helping a non-native speaker sound like a native. The learner has strong grammar. Yesterday's topic was 'Expressing Opinions Naturally'. Today (2026/02/27) focus on: **Storytelling & Anecdotes** — how natives tell short stories and personal anecdotes in conversation: setting the scene, building tension, and landing a punchline or conclusion (e.g. 'So there I was…', 'Long story short…', 'You'll never guess what happened…', 'And then it hit me…'). Provide: (1) a short explanation of the skill, (2) 10 example sentences contrasting textbook vs native phrasing, (3) a 5-minute speaking drill, (4) 3 common mistakes to avoid, (5) a fun challenge sentence to try out loud. End by suggesting the NEXT topic that logically follows, formatted as a JSON block: {\"next_topic\": \"...\", \"next_skill_focus\": [\"...\"], \"next_prompt\": \"...\"}."
   },
 
   "settings": {
@@ -37,7 +37,7 @@
       "date": "2026/02/25",
       "topic": "Greetings & Small Talk",
       "folder": "2026/02/25",
-      "completed": false
+      "completed": true
     }
   ]
 }
